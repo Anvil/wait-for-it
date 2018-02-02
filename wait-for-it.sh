@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #   Use this script to test if a given TCP host/port are available
 
-cmdname=$(basename $0)
+cmdname=$(basename "$0")
 
 echoerr() { if [[ $QUIET -ne 1 ]]; then echo "$@" 1>&2; fi }
 
@@ -33,12 +33,11 @@ wait_for()
     while :
     do
         if [[ $ISBUSY -eq 1 ]]; then
-            nc -z $HOST $PORT
-            result=$?
+            nc -z "$HOST" "$PORT"
         else
-            (echo > /dev/tcp/$HOST/$PORT) >/dev/null 2>&1
-            result=$?
+            (echo > "/dev/tcp/$HOST/$PORT") >/dev/null 2>&1
         fi
+        result=$?
         if [[ $result -eq 0 ]]; then
             end_ts=$SECONDS
             echoerr "$cmdname: $HOST:$PORT is available after $((end_ts - start_ts)) seconds"
@@ -51,12 +50,12 @@ wait_for()
 
 wait_for_wrapper()
 {
-    # In order to support SIGINT during timeout: http://unix.stackexchange.com/a/57692
+    local -a args
     if [[ $QUIET -eq 1 ]]; then
-        timeout $BUSYTIMEFLAG $TIMEOUT $0 --quiet --child --host=$HOST --port=$PORT --timeout=$TIMEOUT &
-    else
-        timeout $BUSYTIMEFLAG $TIMEOUT $0 --child --host=$HOST --port=$PORT --timeout=$TIMEOUT &
+	args=(--quiet)
     fi
+    # In order to support SIGINT during timeout: http://unix.stackexchange.com/a/57692
+    timeout $BUSYTIMEFLAG "$TIMEOUT" "$0" "${args[@]}" --child --host="$HOST" --port="$PORT" --timeout="$TIMEOUT" &
     PID=$!
     trap "kill -INT -$PID" INT
     wait $PID
@@ -72,9 +71,7 @@ while [[ $# -gt 0 ]]
 do
     case "$1" in
         *:* )
-        hostport=(${1//:/ })
-        HOST=${hostport[0]}
-        PORT=${hostport[1]}
+	IFS=':' read HOST PORT _ <<<"$1"
         shift 1
         ;;
         --child)
@@ -142,8 +139,7 @@ CHILD=${CHILD:-0}
 QUIET=${QUIET:-0}
 
 # check to see if timeout is from busybox?
-# check to see if timeout is from busybox?
-TIMEOUT_PATH=$(realpath $(which timeout))
+TIMEOUT_PATH=$(realpath "$(which timeout)")
 if [[ $TIMEOUT_PATH =~ "busybox" ]]; then
         ISBUSY=1
         BUSYTIMEFLAG="-t"
@@ -159,11 +155,10 @@ if [[ $CHILD -gt 0 ]]; then
 else
     if [[ $TIMEOUT -gt 0 ]]; then
         wait_for_wrapper
-        RESULT=$?
     else
         wait_for
-        RESULT=$?
     fi
+    RESULT=$?
 fi
 
 if [[ $CLI != "" ]]; then
